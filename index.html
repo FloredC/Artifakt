@@ -518,6 +518,9 @@
       cursor: pointer;
       transition: background 0.18s, border-color 0.18s, transform 0.15s;
       text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     .artist-card:active { transform: scale(0.97); }
     .artist-card.selected {
@@ -717,7 +720,7 @@
       -webkit-overflow-scrolling: touch;
     }
     .s3-back-title { font-size: var(--t-lg); font-weight: 700; color: var(--accent); margin-bottom: 4px; line-height: 1.2; }
-    .s3-back-dates { font-size: var(--t-xs); color: var(--muted); margin-bottom: 18px; line-height: 1.55; }
+    .s3-back-dates { font-size: var(--t-xs); color: var(--ink); margin-bottom: 18px; line-height: 1.55; }
     .s3-back-bio p { font-size: var(--t-sm); line-height: 1.65; color: var(--ink); margin-bottom: 12px; }
     .s3-back-bio p:last-child { margin-bottom: 40px; }
     .s3-flip-btn {
@@ -728,11 +731,8 @@
       color: var(--accent); font-family: var(--font); font-size: 13px; font-weight: 600;
       cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
-    /* front: top-right, just under the card's byline strip */
-    .s3-front .s3-flip-btn { top: 54px; right: 14px; }
     .s3-front { background: #fff; }
-    /* back: bottom-left */
-    .s3-back .s3-flip-btn { bottom: 18px; left: 18px; }
+    .s3-canvas-wrap > .s3-flip-btn { position: absolute; bottom: 54px; left: 14px; z-index: 10; }
     .s3-flip-btn:active { opacity: 0.8; }
     .s3-flip-btn svg { display: block; }
 
@@ -922,7 +922,7 @@
       </svg>
       <button class="regen-btn" id="regen-btn" title="New motif"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.5"><path d="M21 21L9 21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M14.9142 3.41421L19.864 8.36396C20.645 9.14501 20.645 10.4113 19.864 11.1924L10.6213 20.435C10.2596 20.7968 9.76894 21 9.25736 21C8.74577 21 8.25514 20.7968 7.8934 20.435L2.8934 15.435C2.11235 14.654 2.11235 13.3877 2.8934 12.6066L7 8.5L11.75 13.25C12.4404 13.9404 13.5596 13.9404 14.25 13.25C14.9404 12.5596 14.9404 11.4404 14.25 10.75L9.5 6L12.0858 3.41421C12.8668 2.63317 14.1332 2.63317 14.9142 3.41421Z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
       <button class="trace-this-btn" id="trace-this-btn">Sketch a cat</button>
-      <div class="canvas-hint" id="canvas-hint">Draw over the guide with your finger<br>Pinch to zoom in and out</div>
+      <div class="canvas-hint" id="canvas-hint">Pinch to zoom in and out for easier tracing</div>
       <div class="scaffold-loading" id="scaffold-loading">
         <svg viewBox="0 0 100 100" aria-hidden="true">
           <circle class="pl-fill"  cx="50" cy="50" r="46"/>
@@ -1015,10 +1015,6 @@
           <div class="replay-stamp">
             <canvas id="replay-canvas"></canvas>
           </div>
-          <button class="s3-flip-btn" id="s3-flip-btn" aria-label="About the artist">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 16.5v-5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            <span id="s3-flip-btn-label">About the artist</span>
-          </button>
         </div>
         <div class="s3-face s3-back">
           <div class="s3-back-inner">
@@ -1026,12 +1022,12 @@
             <p class="s3-back-dates" id="s3-back-dates"></p>
             <div class="s3-back-bio" id="s3-back-bio"></div>
           </div>
-          <button class="s3-flip-btn" id="s3-flip-back-btn" aria-label="Back to artwork">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12H3M7.25 16.25L3 12L7.25 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            Artwork
-          </button>
         </div>
       </div>
+      <button class="s3-flip-btn" id="s3-flip-btn" aria-label="About the artist">
+        <svg id="s3-flip-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 16.5v-5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span id="s3-flip-btn-label">About the artist</span>
+      </button>
     </div>
     <div class="s3-bottom">
       <button class="btn-copy" id="copy-btn">Share</button>
@@ -3302,7 +3298,6 @@ function startDraw(e) {
   Object.keys(artistImageCache).forEach(k => delete artistImageCache[k]);
   const pos = getPos(e);
   state.currentStroke = { points: [pos] };
-  canvasHint.style.opacity = '0';
 }
 
 function moveDraw(e) {
@@ -3641,9 +3636,12 @@ doneBtn.addEventListener('click', () => {
   const artistKey = FIXED_ARTIST_KEYS[state.selectedArtist];
   const artistName = ARTIST_DEFS[artistKey]?.name || '—';
   document.getElementById('s3-artist-name').textContent = artistName;
-  const firstName = artistName.split(' ')[0];
-  const flipLabel = document.getElementById('s3-flip-btn-label');
-  if (flipLabel) flipLabel.textContent = 'About ' + firstName;
+  const initials = artistName.split(' ').map(p => p[0] + '.').join('');
+  const aboutLabel = 'About ' + initials;
+  const flipBtnEl = document.getElementById('s3-flip-btn');
+  flipBtnEl.dataset.aboutLabel = aboutLabel;
+  document.getElementById('s3-flip-btn-label').textContent = aboutLabel;
+  document.getElementById('s3-flip-icon').innerHTML = `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 16.5v-5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`;
 
   // Populate the card back (About the artist)
   const bio = ARTIST_BIOS[artistKey];
@@ -3658,12 +3656,19 @@ doneBtn.addEventListener('click', () => {
   setTimeout(buildScreen3, 380);
 });
 
-// Card flip — front artwork ⇄ artist bio
-document.getElementById('s3-flip-btn').addEventListener('click', () => {
-  document.getElementById('s3-flip').classList.add('flipped');
-});
-document.getElementById('s3-flip-back-btn').addEventListener('click', () => {
-  document.getElementById('s3-flip').classList.remove('flipped');
+// Card flip — single button toggles between artwork and artist bio
+const flipCard = document.getElementById('s3-flip');
+const flipBtn  = document.getElementById('s3-flip-btn');
+const flipIcon = document.getElementById('s3-flip-icon');
+const flipLabel = document.getElementById('s3-flip-btn-label');
+
+const ICON_INFO = `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 16.5v-5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`;
+const ICON_BACK = `<path d="M21 12H3M7.25 16.25L3 12L7.25 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+flipBtn.addEventListener('click', () => {
+  const isFlipped = flipCard.classList.toggle('flipped');
+  flipIcon.innerHTML = isFlipped ? ICON_BACK : ICON_INFO;
+  flipLabel.textContent = isFlipped ? 'Artwork' : flipBtn.dataset.aboutLabel || 'About';
 });
 
 /* ══════════════════════════════════════════════════════════
