@@ -1091,29 +1091,38 @@ async function generateScaffold(keyword) {
     // Representation: vague words like "diverse" collapse to the model's
     // default (thin, white, European features), so we anchor a specific,
     // POC-centered subject in the FOREGROUND and rotate it each generation.
+    const HUMAN_KEYWORDS = ['person','people','woman','man','body','face','portrait','figure','human','friend','mother','father','child','girl','boy','family','love','heart','self','identity','dancer','singer','artist','teacher','leader','elder','baby','sister','brother','strong','brave','gentle','wild','tender','fierce','bold','vulnerable','resilient','powerful','fragile','lonely','proud','angry','joyful','sad','tired','free'];
+    const isHuman = HUMAN_KEYWORDS.some(w => keyword.toLowerCase().includes(w));
+
     const SUBJECT_POOL = [
-      'a Black woman with natural coiled or afro hair, broad features',
-      'a dark-skinned Black person with full-figured body and locs',
-      'an East Asian woman with straight black hair and dark features',
-      'a Southeast Asian woman with dark hair, soft rounded body',
+      'a Black non-binary person with natural coiled hair and broad features',
+      'a dark-skinned Black person with full-figured body and locs, androgynous presentation',
+      'an East Asian non-binary person with short black hair and dark features',
+      'a Southeast Asian person with dark hair and soft rounded body, gender-neutral',
       'a South Asian woman with dark wavy hair and strong features',
-      'a brown-skinned plus-size woman, curvy full body',
-      'a Black trans or non-binary person with textured dark hair',
-      'an Indigenous or Latina woman with dark hair and features',
-      'an older woman of color with a soft rounded body',
+      'a brown-skinned plus-size non-binary person, curvy full body',
+      'a Black trans woman with textured dark hair and expressive features',
+      'an Indigenous or Latina person with dark hair, gender-fluid presentation',
+      'an older woman of color with a soft rounded body and natural grey streaks',
+      'a mixed-race non-binary person with loose curly hair and ambiguous features',
+      'a dark-skinned person with a shaved head, androgynous and strong build',
     ];
     const subject = SUBJECT_POOL[Math.floor(Math.random() * SUBJECT_POOL.length)];
 
-    const prompt = [
-      `loose gestural pencil sketch of "${keyword}"`,
+    const promptParts = [
+      `loose gestural pencil sketch of "${keyword}" — the subject is clearly and literally "${keyword}"`,
       'minimal line drawing, black ink lines on white paper',
-      'abstract, open to interpretation, unfinished strokes',
       'no color, no fill, no shading, no background texture',
       'art study, sketch pad, rough draft quality',
-      'sparse composition, breathing room, a few key lines only',
-      `if a human figure appears, it is ${subject}, drawn as the central foreground subject — render the varied facial features, hair texture and body shape clearly in line`,
-      'centers women, trans and non-binary people of color; never default to a thin white or masculine-presenting figure'
-    ].join(', ');
+      'sparse composition, a few key identifying lines only',
+    ];
+    if (isHuman) {
+      promptParts.push(`the human figure is ${subject}, drawn as the central foreground subject — render the varied facial features, hair texture and body shape clearly in line`);
+      promptParts.push('centers women, trans and non-binary people of color; never default to a thin white or masculine-presenting figure');
+    } else {
+      promptParts.push('no human figures, no faces, no people — only the object or concept itself');
+    }
+    const prompt = promptParts.join(', ');
 
     const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
       method: 'POST',
