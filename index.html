@@ -1133,7 +1133,7 @@ let replicateResultUrl = null; // reused as falResultUrl for Screen 3
    connected-component analysis → keep top 50% by pixel count
    Set false to display the raw fal.ai image for debugging.
 ────────────────────────────────────────────────────────────── */
-const SCAFFOLD_CONTOUR_REDUCTION = false;
+const SCAFFOLD_CONTOUR_REDUCTION = true;
 
 // Separable binary dilation — O(w*h) regardless of radius.
 // Equivalent to RETR_EXTERNAL: connects nearby strokes into solid filled regions.
@@ -1209,9 +1209,10 @@ async function _processVariantC(rawUrl) {
       const gray = new Uint8Array(w * h);
       for (let i = 0; i < w*h; i++)
         gray[i] = (0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2]) | 0;
-      // 2. Threshold: dark pixels = sketch marks (pencil lines on white paper)
+      // 2. Threshold: fal.ai at 2 steps produces very light lines (~180-220),
+      //    so threshold at 230 to catch light pencil on near-white background
       const marks = new Uint8Array(w * h);
-      for (let i = 0; i < w*h; i++) marks[i] = gray[i] < 190 ? 1 : 0;
+      for (let i = 0; i < w*h; i++) marks[i] = gray[i] < 230 ? 1 : 0;
       console.log(`[VariantC] threshold done ${(performance.now()-t0).toFixed(0)}ms`);
       // 3. Dilate heavily to fill gaps between strokes → solid filled regions
       //    Equivalent to what RETR_EXTERNAL sees: the outer shape of each ink mass
@@ -1224,8 +1225,8 @@ async function _processVariantC(rawUrl) {
           if (filled[y*w+x] && (!filled[(y-1)*w+x] || !filled[(y+1)*w+x] || !filled[y*w+x-1] || !filled[y*w+x+1]))
             boundary[y*w+x] = 1;
       console.log(`[VariantC] boundary done ${(performance.now()-t0).toFixed(0)}ms`);
-      // 5. Keep top 40% of boundary components, min 300px — removes tiny fragments
-      const kept = _keepTopComponents(boundary, w, h, 0.40, 300);
+      // 5. Keep top 40% of boundary components, min 50px — removes tiny fragments
+      const kept = _keepTopComponents(boundary, w, h, 0.40, 50);
       console.log(`[VariantC] components done ${(performance.now()-t0).toFixed(0)}ms`);
       // render black-on-white
       const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
