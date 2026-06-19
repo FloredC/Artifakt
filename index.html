@@ -1135,65 +1135,100 @@ let replicateResultUrl = null; // reused as falResultUrl for Screen 3
 ────────────────────────────────────────────────────────────── */
 const SCAFFOLD_CONTOUR_REDUCTION = true;
 
-// Separable binary dilation — O(w*h) regardless of radius.
-// Equivalent to RETR_EXTERNAL: connects nearby strokes into solid filled regions.
-function _dilateBinary(src, w, h, radius) {
-  const tmp = new Uint8Array(w * h), dst = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) {
-    let ones = 0;
-    for (let k = 0; k <= radius && k < w; k++) if (src[y*w+k]) ones++;
-    for (let x = 0; x < w; x++) {
-      tmp[y*w+x] = ones > 0 ? 1 : 0;
-      if (x+radius+1 < w && src[y*w+x+radius+1]) ones++;
-      if (x-radius   >= 0 && src[y*w+x-radius])   ones--;
-    }
+// Faithful JS port of the Experiment 006 OpenCV pipeline:
+//   GaussianBlur(3x3) → Canny(20,60) → dilate/erode(2x2) →
+//   findContours(RETR_EXTERNAL) → keep top 50% by area → draw thickness 1
+
+// 3x3 Gaussian blur (matches cv2.GaussianBlur (3,3))
+function _gauss3(src, w, h) {
+  const k = [1,2,1], ks = 4;
+  const tmp = new Float32Array(w*h), dst = new Float32Array(w*h);
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+    let s=0; for(let d=-1;d<=1;d++) s+=src[y*w+Math.max(0,Math.min(w-1,x+d))]*k[d+1];
+    tmp[y*w+x]=s/ks;
   }
-  for (let x = 0; x < w; x++) {
-    let ones = 0;
-    for (let k = 0; k <= radius && k < h; k++) if (tmp[k*w+x]) ones++;
-    for (let y = 0; y < h; y++) {
-      dst[y*w+x] = ones > 0 ? 1 : 0;
-      if (y+radius+1 < h && tmp[(y+radius+1)*w+x]) ones++;
-      if (y-radius   >= 0 && tmp[(y-radius)*w+x])   ones--;
-    }
+  for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+    let s=0; for(let d=-1;d<=1;d++) s+=tmp[Math.max(0,Math.min(h-1,y+d))*w+x]*k[d+1];
+    dst[y*w+x]=s/ks;
   }
   return dst;
 }
 
-function _keepTopComponents(bin, w, h, frac, minSize = 0) {
-  const labels = new Int32Array(w * h).fill(-1);
-  const sizes  = [];
-  const q      = new Int32Array(w * h);
-  for (let s = 0; s < w * h; s++) {
-    if (!bin[s] || labels[s] !== -1) continue;
-    const id = sizes.length;
-    let head = 0, tail = 0, sz = 0;
-    q[tail++] = s; labels[s] = id;
-    while (head < tail) {
-      const p = q[head++]; sz++;
-      const x = p % w, y = (p / w) | 0;
-      if (x > 0     && bin[p-1] && labels[p-1] === -1) { labels[p-1] = id; q[tail++] = p-1; }
-      if (x < w-1   && bin[p+1] && labels[p+1] === -1) { labels[p+1] = id; q[tail++] = p+1; }
-      if (y > 0     && bin[p-w] && labels[p-w] === -1) { labels[p-w] = id; q[tail++] = p-w; }
-      if (y < h-1   && bin[p+w] && labels[p+w] === -1) { labels[p+w] = id; q[tail++] = p+w; }
-    }
-    sizes.push(sz);
+// Full Canny edge detector: Sobel → non-max suppression → double-threshold hysteresis
+function _canny(gray, w, h, loThresh, hiThresh) {
+  const blur = _gauss3(gray, w, h);
+  const mag = new Float32Array(w*h), dir = new Uint8Array(w*h);
+  for (let y=1;y<h-1;y++) for (let x=1;x<w-1;x++){
+    const i=y*w+x;
+    const gx = -blur[i-w-1]+blur[i-w+1]-2*blur[i-1]+2*blur[i+1]-blur[i+w-1]+blur[i+w+1];
+    const gy = -blur[i-w-1]-2*blur[i-w]-blur[i-w+1]+blur[i+w-1]+2*blur[i+w]+blur[i+w+1];
+    mag[i] = Math.hypot(gx, gy);
+    let a = Math.atan2(gy, gx) * 180/Math.PI; if (a<0) a+=180;
+    dir[i] = a<22.5?0 : a<67.5?1 : a<112.5?2 : a<157.5?3 : 0; // 0:E-W 1:NE-SW 2:N-S 3:NW-SE
   }
-  const eligible = sizes.map((s, i) => s >= minSize ? i : -1).filter(i => i !== -1);
-  eligible.sort((a, b) => sizes[b] - sizes[a]);
-  const nKeep  = Math.max(1, Math.round(eligible.length * frac));
-  const keepSet = new Set(eligible.slice(0, nKeep));
-  const keepId = new Uint8Array(sizes.length);
-  for (const i of keepSet) keepId[i] = 1;
-  const out = new Uint8Array(w * h);
-  for (let i = 0; i < w * h; i++) if (bin[i] && labels[i] !== -1 && keepId[labels[i]]) out[i] = 1;
+  // non-maximum suppression
+  const nms = new Float32Array(w*h);
+  for (let y=1;y<h-1;y++) for (let x=1;x<w-1;x++){
+    const i=y*w+x, m=mag[i]; let a,b;
+    switch(dir[i]){
+      case 0: a=mag[i-1];   b=mag[i+1];   break;
+      case 1: a=mag[i-w+1]; b=mag[i+w-1]; break;
+      case 2: a=mag[i-w];   b=mag[i+w];   break;
+      default:a=mag[i-w-1]; b=mag[i+w+1];
+    }
+    nms[i] = (m>=a && m>=b) ? m : 0;
+  }
+  // double threshold + hysteresis
+  const edge = new Uint8Array(w*h); // 0 none, 1 weak, 2 strong
+  for (let i=0;i<w*h;i++) edge[i] = nms[i]>=hiThresh ? 2 : nms[i]>=loThresh ? 1 : 0;
+  const out = new Uint8Array(w*h);
+  const stack = [];
+  for (let i=0;i<w*h;i++) if (edge[i]===2){ out[i]=1; stack.push(i); }
+  while (stack.length){
+    const p=stack.pop(), x=p%w, y=(p/w)|0;
+    for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++){
+      const nx=x+dx, ny=y+dy; if(nx<0||ny<0||nx>=w||ny>=h) continue;
+      const ni=ny*w+nx;
+      if (edge[ni]===1 && !out[ni]){ out[ni]=1; stack.push(ni); }
+    }
+  }
+  return out;
+}
+
+// Connected-component labeling (8-connectivity) of edge pixels.
+// Keeps top `frac` of components ranked by bounding-box area
+// (proxy for cv2.contourArea — large spatial extent = silhouette).
+function _keepTopComponents(bin, w, h, frac) {
+  const labels = new Int32Array(w*h).fill(-1);
+  const comps = [];                    // {area: bbox area}
+  const q = new Int32Array(w*h);
+  for (let s=0;s<w*h;s++){
+    if (!bin[s] || labels[s]!==-1) continue;
+    const id=comps.length; let head=0,tail=0;
+    let minX=1e9,minY=1e9,maxX=-1,maxY=-1;
+    q[tail++]=s; labels[s]=id;
+    while(head<tail){
+      const p=q[head++], x=p%w, y=(p/w)|0;
+      if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        const nx=x+dx,ny=y+dy; if(nx<0||ny<0||nx>=w||ny>=h) continue;
+        const ni=ny*w+nx; if(bin[ni]&&labels[ni]===-1){labels[ni]=id;q[tail++]=ni;}
+      }
+    }
+    comps.push((maxX-minX+1)*(maxY-minY+1));
+  }
+  const order = comps.map((a,i)=>i).sort((a,b)=>comps[b]-comps[a]);
+  const nKeep = Math.max(1, Math.round(comps.length*frac));
+  const keep = new Uint8Array(comps.length);
+  for (let i=0;i<nKeep;i++) keep[order[i]]=1;
+  const out = new Uint8Array(w*h);
+  for (let i=0;i<w*h;i++) if(bin[i]&&labels[i]!==-1&&keep[labels[i]]) out[i]=1;
   return out;
 }
 
 async function _processVariantC(rawUrl) {
   const t0 = performance.now();
   console.log('[VariantC] fetching image…');
-  // Fetch as blob first so canvas pixel-read is never CORS-tainted
   const blob    = await fetch(rawUrl).then(r => r.blob());
   const blobUrl = URL.createObjectURL(blob);
   console.log(`[VariantC] fetch done in ${(performance.now()-t0).toFixed(0)}ms`);
@@ -1205,36 +1240,23 @@ async function _processVariantC(rawUrl) {
       const sc = document.createElement('canvas'); sc.width = w; sc.height = h;
       sc.getContext('2d').drawImage(img, 0, 0);
       const px = sc.getContext('2d').getImageData(0, 0, w, h).data;
-      // 1. Grayscale
-      const gray = new Uint8Array(w * h);
-      for (let i = 0; i < w*h; i++)
-        gray[i] = (0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2]) | 0;
-      // 2. Threshold: fal.ai at 2 steps produces very light lines (~180-220),
-      //    so threshold at 230 to catch light pencil on near-white background
-      const marks = new Uint8Array(w * h);
-      for (let i = 0; i < w*h; i++) marks[i] = gray[i] < 230 ? 1 : 0;
-      console.log(`[VariantC] threshold done ${(performance.now()-t0).toFixed(0)}ms`);
-      // 3. Dilate heavily to fill gaps between strokes → solid filled regions
-      //    Equivalent to what RETR_EXTERNAL sees: the outer shape of each ink mass
-      const filled = _dilateBinary(marks, w, h, 15);
-      console.log(`[VariantC] dilation done ${(performance.now()-t0).toFixed(0)}ms`);
-      // 4. Trace outer boundary of filled regions (= RETR_EXTERNAL contour)
-      const boundary = new Uint8Array(w * h);
-      for (let y = 1; y < h-1; y++)
-        for (let x = 1; x < w-1; x++)
-          if (filled[y*w+x] && (!filled[(y-1)*w+x] || !filled[(y+1)*w+x] || !filled[y*w+x-1] || !filled[y*w+x+1]))
-            boundary[y*w+x] = 1;
-      console.log(`[VariantC] boundary done ${(performance.now()-t0).toFixed(0)}ms`);
-      // 5. Keep top 40% of boundary components, min 50px — removes tiny fragments
-      const kept = _keepTopComponents(boundary, w, h, 0.40, 50);
+      // grayscale
+      const gray = new Float32Array(w*h);
+      for (let i=0;i<w*h;i++) gray[i] = 0.299*px[i*4]+0.587*px[i*4+1]+0.114*px[i*4+2];
+      // Canny(20,60) — exact thresholds from the experiment
+      const edges = _canny(gray, w, h, 20, 60);
+      const edgeCount = edges.reduce((s,v)=>s+v,0);
+      console.log(`[VariantC] canny done ${(performance.now()-t0).toFixed(0)}ms — ${edgeCount} edge px`);
+      // keep top 50% of components by area (Variant C)
+      const kept = _keepTopComponents(edges, w, h, 0.50);
       console.log(`[VariantC] components done ${(performance.now()-t0).toFixed(0)}ms`);
-      // render black-on-white
+      // render black lines on white
       const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
       const octx = oc.getContext('2d');
       const od = octx.createImageData(w, h);
-      for (let i = 0; i < w*h; i++) {
+      for (let i=0;i<w*h;i++){
         const v = kept[i] ? 0 : 255;
-        od.data[i*4] = od.data[i*4+1] = od.data[i*4+2] = v; od.data[i*4+3] = 255;
+        od.data[i*4]=od.data[i*4+1]=od.data[i*4+2]=v; od.data[i*4+3]=255;
       }
       octx.putImageData(od, 0, 0);
       oc.toBlob(b => {
