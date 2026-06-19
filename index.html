@@ -1135,33 +1135,29 @@ let replicateResultUrl = null; // reused as falResultUrl for Screen 3
 ────────────────────────────────────────────────────────────── */
 const SCAFFOLD_CONTOUR_REDUCTION = true;
 
-function _blur5(src, w, h) {
-  const k = [1, 4, 6, 4, 1], ks = 16;
-  const tmp = new Float32Array(w * h), dst = new Float32Array(w * h);
-  for (let y = 0; y < h; y++)
+// Separable binary dilation — O(w*h) regardless of radius.
+// Equivalent to RETR_EXTERNAL: connects nearby strokes into solid filled regions.
+function _dilateBinary(src, w, h, radius) {
+  const tmp = new Uint8Array(w * h), dst = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    let ones = 0;
+    for (let k = 0; k <= radius && k < w; k++) if (src[y*w+k]) ones++;
     for (let x = 0; x < w; x++) {
-      let s = 0;
-      for (let d = -2; d <= 2; d++) s += src[y*w + Math.max(0,Math.min(w-1,x+d))] * k[d+2];
-      tmp[y*w+x] = s / ks;
+      tmp[y*w+x] = ones > 0 ? 1 : 0;
+      if (x+radius+1 < w && src[y*w+x+radius+1]) ones++;
+      if (x-radius   >= 0 && src[y*w+x-radius])   ones--;
     }
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++) {
-      let s = 0;
-      for (let d = -2; d <= 2; d++) s += tmp[Math.max(0,Math.min(h-1,y+d))*w+x] * k[d+2];
-      dst[y*w+x] = s / ks;
+  }
+  for (let x = 0; x < w; x++) {
+    let ones = 0;
+    for (let k = 0; k <= radius && k < h; k++) if (tmp[k*w+x]) ones++;
+    for (let y = 0; y < h; y++) {
+      dst[y*w+x] = ones > 0 ? 1 : 0;
+      if (y+radius+1 < h && tmp[(y+radius+1)*w+x]) ones++;
+      if (y-radius   >= 0 && tmp[(y-radius)*w+x])   ones--;
     }
+  }
   return dst;
-}
-
-function _sobel(g, w, h) {
-  const m = new Float32Array(w * h);
-  for (let y = 1; y < h-1; y++)
-    for (let x = 1; x < w-1; x++) {
-      const gx = -g[(y-1)*w+(x-1)] + g[(y-1)*w+(x+1)] - 2*g[y*w+(x-1)] + 2*g[y*w+(x+1)] - g[(y+1)*w+(x-1)] + g[(y+1)*w+(x+1)];
-      const gy = -g[(y-1)*w+(x-1)] - 2*g[(y-1)*w+x] - g[(y-1)*w+(x+1)] + g[(y+1)*w+(x-1)] + 2*g[(y+1)*w+x] + g[(y+1)*w+(x+1)];
-      m[y*w+x] = Math.sqrt(gx*gx + gy*gy);
-    }
-  return m;
 }
 
 function _keepTopComponents(bin, w, h, frac, minSize = 0) {
@@ -1209,18 +1205,27 @@ async function _processVariantC(rawUrl) {
       const sc = document.createElement('canvas'); sc.width = w; sc.height = h;
       sc.getContext('2d').drawImage(img, 0, 0);
       const px = sc.getContext('2d').getImageData(0, 0, w, h).data;
-      // grayscale
-      const gray = new Float32Array(w * h);
-      for (let i = 0; i < w*h; i++) gray[i] = 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
-      console.log(`[VariantC] grayscale done ${(performance.now()-t0).toFixed(0)}ms`);
-      // double blur → stronger smoothing suppresses fine hair/face detail
-      const mag = _sobel(_blur5(_blur5(gray, w, h), w, h), w, h);
-      const bin = new Uint8Array(w * h);
-      for (let i = 0; i < w*h; i++) bin[i] = mag[i] > 50 ? 1 : 0;
-      const edgeCount = bin.reduce((s,v) => s+v, 0);
-      console.log(`[VariantC] edges done ${(performance.now()-t0).toFixed(0)}ms — ${edgeCount} edge pixels`);
-      // keep top 15% of components, minimum 200px each
-      const kept = _keepTopComponents(bin, w, h, 0.15, 200);
+      // 1. Grayscale
+      const gray = new Uint8Array(w * h);
+      for (let i = 0; i < w*h; i++)
+        gray[i] = (0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2]) | 0;
+      // 2. Threshold: dark pixels = sketch marks (pencil lines on white paper)
+      const marks = new Uint8Array(w * h);
+      for (let i = 0; i < w*h; i++) marks[i] = gray[i] < 190 ? 1 : 0;
+      console.log(`[VariantC] threshold done ${(performance.now()-t0).toFixed(0)}ms`);
+      // 3. Dilate heavily to fill gaps between strokes → solid filled regions
+      //    Equivalent to what RETR_EXTERNAL sees: the outer shape of each ink mass
+      const filled = _dilateBinary(marks, w, h, 15);
+      console.log(`[VariantC] dilation done ${(performance.now()-t0).toFixed(0)}ms`);
+      // 4. Trace outer boundary of filled regions (= RETR_EXTERNAL contour)
+      const boundary = new Uint8Array(w * h);
+      for (let y = 1; y < h-1; y++)
+        for (let x = 1; x < w-1; x++)
+          if (filled[y*w+x] && (!filled[(y-1)*w+x] || !filled[(y+1)*w+x] || !filled[y*w+x-1] || !filled[y*w+x+1]))
+            boundary[y*w+x] = 1;
+      console.log(`[VariantC] boundary done ${(performance.now()-t0).toFixed(0)}ms`);
+      // 5. Keep top 40% of boundary components, min 300px — removes tiny fragments
+      const kept = _keepTopComponents(boundary, w, h, 0.40, 300);
       console.log(`[VariantC] components done ${(performance.now()-t0).toFixed(0)}ms`);
       // render black-on-white
       const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
