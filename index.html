@@ -1192,29 +1192,24 @@ If people appear: prioritize expressive poses, silhouettes, and body language. A
 
 Leave meaningful gaps and ambiguity so the user can complete the image through tracing. The final image should feel like a sketch an illustrator made while searching for an idea, not the final illustration itself.`;
 
-    const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
+    // POST prompt to local proxy — proxy calls fal.ai then runs Variant C
+    // contour reduction (OpenCV Canny + 50% area keep) and returns a PNG.
+    const res = await fetch('http://localhost:8080/scaffold', {
       method: 'POST',
-      headers: {
-        'Authorization': `Key ${FAL_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt,
-        num_inference_steps: 2,
-        image_size: 'portrait_4_3',
-        num_images: 1
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
 
-    const data = await res.json();
     if (genId !== scaffoldGenId) return; // stale — newer word typed
-    const url = data?.images?.[0]?.url;
-    if (!url) {
-      // API error (e.g. 403 exhausted balance) — don't leave the spinner hanging
-      console.warn('Scaffold generation returned no image:', data);
+    if (!res.ok) {
+      console.warn('Scaffold generation failed:', res.status, await res.text());
       scaffoldLoading.classList.remove('show');
       return;
     }
+
+    const blob = await res.blob();
+    if (genId !== scaffoldGenId) return;
+    const url = URL.createObjectURL(blob);
 
     scaffoldCache[keyword] = url;
     scaffoldImg.onload = () => {
