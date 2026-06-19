@@ -1127,11 +1127,112 @@ const state = {
 const FAL_API_KEY = '77e88931-c234-44b4-b4d0-3181195a2730:13035cfa73c8fce02b49cbc6aa2d43e5';
 let replicateResultUrl = null; // reused as falResultUrl for Screen 3
 
+/* ── Browser-side Variant C contour reduction ───────────────
+   Approximates the Python OpenCV pipeline from Experiment 006:
+   grayscale → Gaussian blur → Sobel edges → threshold →
+   connected-component analysis → keep top 50% by pixel count
+   Set false to display the raw fal.ai image for debugging.
+────────────────────────────────────────────────────────────── */
+const SCAFFOLD_CONTOUR_REDUCTION = true;
+
+function _blur5(src, w, h) {
+  const k = [1, 4, 6, 4, 1], ks = 16;
+  const tmp = new Float32Array(w * h), dst = new Float32Array(w * h);
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let d = -2; d <= 2; d++) s += src[y*w + Math.max(0,Math.min(w-1,x+d))] * k[d+2];
+      tmp[y*w+x] = s / ks;
+    }
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let d = -2; d <= 2; d++) s += tmp[Math.max(0,Math.min(h-1,y+d))*w+x] * k[d+2];
+      dst[y*w+x] = s / ks;
+    }
+  return dst;
+}
+
+function _sobel(g, w, h) {
+  const m = new Float32Array(w * h);
+  for (let y = 1; y < h-1; y++)
+    for (let x = 1; x < w-1; x++) {
+      const gx = -g[(y-1)*w+(x-1)] + g[(y-1)*w+(x+1)] - 2*g[y*w+(x-1)] + 2*g[y*w+(x+1)] - g[(y+1)*w+(x-1)] + g[(y+1)*w+(x+1)];
+      const gy = -g[(y-1)*w+(x-1)] - 2*g[(y-1)*w+x] - g[(y-1)*w+(x+1)] + g[(y+1)*w+(x-1)] + 2*g[(y+1)*w+x] + g[(y+1)*w+(x+1)];
+      m[y*w+x] = Math.sqrt(gx*gx + gy*gy);
+    }
+  return m;
+}
+
+function _keepTopComponents(bin, w, h, frac) {
+  const labels = new Int32Array(w * h).fill(-1);
+  const sizes  = [];
+  const q      = new Int32Array(w * h);
+  for (let s = 0; s < w * h; s++) {
+    if (!bin[s] || labels[s] !== -1) continue;
+    const id = sizes.length;
+    let head = 0, tail = 0, sz = 0;
+    q[tail++] = s; labels[s] = id;
+    while (head < tail) {
+      const p = q[head++]; sz++;
+      const x = p % w, y = (p / w) | 0;
+      if (x > 0     && bin[p-1] && labels[p-1] === -1) { labels[p-1] = id; q[tail++] = p-1; }
+      if (x < w-1   && bin[p+1] && labels[p+1] === -1) { labels[p+1] = id; q[tail++] = p+1; }
+      if (y > 0     && bin[p-w] && labels[p-w] === -1) { labels[p-w] = id; q[tail++] = p-w; }
+      if (y < h-1   && bin[p+w] && labels[p+w] === -1) { labels[p+w] = id; q[tail++] = p+w; }
+    }
+    sizes.push(sz);
+  }
+  const nKeep  = Math.max(1, Math.round(sizes.length * frac));
+  const minSz  = [...sizes].sort((a, b) => b - a)[nKeep - 1] ?? 0;
+  const keepId = new Uint8Array(sizes.length);
+  for (let i = 0; i < sizes.length; i++) if (sizes[i] >= minSz) keepId[i] = 1;
+  const out = new Uint8Array(w * h);
+  for (let i = 0; i < w * h; i++) if (bin[i] && labels[i] !== -1 && keepId[labels[i]]) out[i] = 1;
+  return out;
+}
+
+async function _processVariantC(rawUrl) {
+  // Fetch as blob first so canvas pixel-read is never CORS-tainted
+  const blob    = await fetch(rawUrl).then(r => r.blob());
+  const blobUrl = URL.createObjectURL(blob);
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      const sc = document.createElement('canvas'); sc.width = w; sc.height = h;
+      sc.getContext('2d').drawImage(img, 0, 0);
+      const px = sc.getContext('2d').getImageData(0, 0, w, h).data;
+      // grayscale
+      const gray = new Float32Array(w * h);
+      for (let i = 0; i < w*h; i++) gray[i] = 0.299*px[i*4] + 0.587*px[i*4+1] + 0.114*px[i*4+2];
+      // blur → sobel → threshold
+      const mag = _sobel(_blur5(gray, w, h), w, h);
+      const bin = new Uint8Array(w * h);
+      for (let i = 0; i < w*h; i++) bin[i] = mag[i] > 25 ? 1 : 0;
+      // keep top 50% components
+      const kept = _keepTopComponents(bin, w, h, 0.50);
+      // render black-on-white
+      const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
+      const octx = oc.getContext('2d');
+      const od = octx.createImageData(w, h);
+      for (let i = 0; i < w*h; i++) {
+        const v = kept[i] ? 0 : 255;
+        od.data[i*4] = od.data[i*4+1] = od.data[i*4+2] = v; od.data[i*4+3] = 255;
+      }
+      octx.putImageData(od, 0, 0);
+      oc.toBlob(b => { URL.revokeObjectURL(blobUrl); resolve(URL.createObjectURL(b)); });
+    };
+    img.onerror = reject;
+    img.src = blobUrl;
+  });
+}
+
 /* ── AI Scaffold generation ──────────────────────────────────
    Generates a loose pencil-sketch image for any keyword.
    Fades in behind the draw canvas once ready.
 ────────────────────────────────────────────────────────────── */
-const scaffoldCache = {};      // keyword → image URL
+const scaffoldCache = {};      // keyword → processed image blob URL
 let scaffoldGenId   = 0;       // cancel stale requests
 
 async function generateScaffold(keyword) {
@@ -1192,31 +1293,32 @@ If people appear: prioritize expressive poses, silhouettes, and body language. A
 
 Leave meaningful gaps and ambiguity so the user can complete the image through tracing. The final image should feel like a sketch an illustrator made while searching for an idea, not the final illustration itself.`;
 
-    // POST prompt to local proxy — proxy calls fal.ai then runs Variant C
-    // contour reduction (OpenCV Canny + 50% area keep) and returns a PNG.
-    const res = await fetch('http://localhost:8080/scaffold', {
+    const res = await fetch('https://fal.run/fal-ai/flux/schnell', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
+      headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, num_inference_steps: 2, image_size: 'portrait_4_3', num_images: 1 })
     });
 
-    if (genId !== scaffoldGenId) return; // stale — newer word typed
-    if (!res.ok) {
-      console.warn('Scaffold generation failed:', res.status, await res.text());
+    if (genId !== scaffoldGenId) return;
+    const data = await res.json();
+    if (genId !== scaffoldGenId) return;
+    const rawUrl = data?.images?.[0]?.url;
+    if (!rawUrl) {
+      console.warn('Scaffold generation returned no image:', data);
       scaffoldLoading.classList.remove('show');
       return;
     }
 
-    const blob = await res.blob();
+    // Apply browser-side Variant C contour reduction (or show raw for debugging)
+    const url = SCAFFOLD_CONTOUR_REDUCTION ? await _processVariantC(rawUrl) : rawUrl;
     if (genId !== scaffoldGenId) return;
-    const url = URL.createObjectURL(blob);
 
     scaffoldCache[keyword] = url;
     scaffoldImg.onload = () => {
       if (genId !== scaffoldGenId) return;
       scaffoldImg.classList.add('ready');
       scaffoldLoading.classList.remove('show');
-      redrawCanvas(); // clears the canvas motif now that the image is showing
+      redrawCanvas();
     };
     scaffoldImg.src = url;
   } catch (err) {
