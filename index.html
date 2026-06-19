@@ -1195,34 +1195,57 @@ function _canny(gray, w, h, loThresh, hiThresh) {
   return out;
 }
 
-// Connected-component labeling (8-connectivity) of edge pixels.
-// Keeps top `frac` of components ranked by bounding-box area
-// (proxy for cv2.contourArea — large spatial extent = silhouette).
-function _keepTopComponents(bin, w, h, frac) {
-  const labels = new Int32Array(w*h).fill(-1);
-  const comps = [];                    // {area: bbox area}
-  const q = new Int32Array(w*h);
-  for (let s=0;s<w*h;s++){
-    if (!bin[s] || labels[s]!==-1) continue;
-    const id=comps.length; let head=0,tail=0;
-    let minX=1e9,minY=1e9,maxX=-1,maxY=-1;
-    q[tail++]=s; labels[s]=id;
-    while(head<tail){
-      const p=q[head++], x=p%w, y=(p/w)|0;
-      if(x<minX)minX=x; if(x>maxX)maxX=x; if(y<minY)minY=y; if(y>maxY)maxY=y;
-      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
-        const nx=x+dx,ny=y+dy; if(nx<0||ny<0||nx>=w||ny>=h) continue;
-        const ni=ny*w+nx; if(bin[ni]&&labels[ni]===-1){labels[ni]=id;q[tail++]=ni;}
-      }
-    }
-    comps.push((maxX-minX+1)*(maxY-minY+1));
-  }
-  const order = comps.map((a,i)=>i).sort((a,b)=>comps[b]-comps[a]);
-  const nKeep = Math.max(1, Math.round(comps.length*frac));
-  const keep = new Uint8Array(comps.length);
-  for (let i=0;i<nKeep;i++) keep[order[i]]=1;
+// Separable binary dilation / erosion (square kernel, radius r)
+function _dilate(src, w, h, r) {
+  const tmp = new Uint8Array(w*h), dst = new Uint8Array(w*h);
+  for (let y=0;y<h;y++){ let c=0;
+    for(let k=0;k<=r&&k<w;k++) c+=src[y*w+k];
+    for(let x=0;x<w;x++){ tmp[y*w+x]=c>0?1:0;
+      if(x+r+1<w)c+=src[y*w+x+r+1]; if(x-r>=0)c-=src[y*w+x-r]; } }
+  for (let x=0;x<w;x++){ let c=0;
+    for(let k=0;k<=r&&k<h;k++) c+=tmp[k*w+x];
+    for(let y=0;y<h;y++){ dst[y*w+x]=c>0?1:0;
+      if(y+r+1<h)c+=tmp[(y+r+1)*w+x]; if(y-r>=0)c-=tmp[(y-r)*w+x]; } }
+  return dst;
+}
+function _erode(src, w, h, r) {
+  const inv = new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) inv[i]=src[i]?0:1;
+  const d = _dilate(inv, w, h, r);
   const out = new Uint8Array(w*h);
-  for (let i=0;i<w*h;i++) if(bin[i]&&labels[i]!==-1&&keep[labels[i]]) out[i]=1;
+  for(let i=0;i<w*h;i++) out[i]=d[i]?0:1;
+  return out;
+}
+
+// Extract ONLY the outer silhouette boundary (cv2 RETR_EXTERNAL equivalent).
+// Dilate edges to close the outline → flood-fill background from the borders →
+// the figure is everything the background can't reach → trace its outer edge.
+function _outerSilhouette(edges, w, h) {
+  const R = 5;
+  const closed = _dilate(edges, w, h, R);   // close gaps in the outline
+  // flood fill background from all border pixels (4-connectivity)
+  const bg = new Uint8Array(w*h);
+  const stack = [];
+  for (let x=0;x<w;x++){ stack.push(x, (h-1)*w+x); }
+  for (let y=0;y<h;y++){ stack.push(y*w, y*w+w-1); }
+  while (stack.length){
+    const p = stack.pop();
+    if (bg[p] || closed[p]) continue;
+    bg[p]=1; const x=p%w, y=(p/w)|0;
+    if(x>0)stack.push(p-1); if(x<w-1)stack.push(p+1);
+    if(y>0)stack.push(p-w); if(y<h-1)stack.push(p+w);
+  }
+  // filled figure = anything background couldn't reach
+  const filled = new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) filled[i] = bg[i]?0:1;
+  // erode back by R to undo the dilation and recover true boundary position
+  const fig = _erode(filled, w, h, R);
+  // outer boundary = figure pixels touching non-figure (4-connectivity)
+  const out = new Uint8Array(w*h);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+    const i=y*w+x;
+    if(fig[i] && (!fig[i-1]||!fig[i+1]||!fig[i-w]||!fig[i+w])) out[i]=1;
+  }
   return out;
 }
 
@@ -1247,9 +1270,9 @@ async function _processVariantC(rawUrl) {
       const edges = _canny(gray, w, h, 20, 60);
       const edgeCount = edges.reduce((s,v)=>s+v,0);
       console.log(`[VariantC] canny done ${(performance.now()-t0).toFixed(0)}ms — ${edgeCount} edge px`);
-      // keep top 50% of components by area (Variant C)
-      const kept = _keepTopComponents(edges, w, h, 0.50);
-      console.log(`[VariantC] components done ${(performance.now()-t0).toFixed(0)}ms`);
+      // extract ONLY the outer silhouette (RETR_EXTERNAL equivalent)
+      const kept = _outerSilhouette(edges, w, h);
+      console.log(`[VariantC] silhouette done ${(performance.now()-t0).toFixed(0)}ms`);
       // render black lines on white
       const oc = document.createElement('canvas'); oc.width = w; oc.height = h;
       const octx = oc.getContext('2d');
