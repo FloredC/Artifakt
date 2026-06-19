@@ -1328,8 +1328,11 @@ Leave meaningful gaps and ambiguity so the user can complete the image through t
       return;
     }
 
-    // Apply browser-side Variant C contour reduction (or show raw for debugging)
-    const url = SCAFFOLD_CONTOUR_REDUCTION ? await _processVariantC(rawUrl) : rawUrl;
+    // Apply browser-side Variant C contour reduction, fall back to raw on error
+    let url = rawUrl;
+    if (SCAFFOLD_CONTOUR_REDUCTION) {
+      try { url = await _processVariantC(rawUrl); } catch(e) { console.warn('[VariantC] failed, using raw image:', e); }
+    }
     if (genId !== scaffoldGenId) return;
 
     scaffoldCache[keyword] = url;
