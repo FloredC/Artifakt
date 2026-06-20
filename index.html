@@ -131,20 +131,30 @@
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 32px;
+      margin-top: 10px;
+    }
+    .kw-section-label {
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 500;
+      color: #888480;
+      margin-top: 28px;
+      margin-bottom: 0;
+      letter-spacing: 0.02em;
     }
     .kw-tag {
-      background: #ede9f8;
-      border: none;
-      color: var(--accent);
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
+      color: var(--ink);
       font-family: var(--font);
       font-size: var(--t-base);
       border-radius: 100px;
       padding: 7px 15px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
     }
-    .kw-tag:active { background: #ddd6f3; }
+    .kw-tag:hover { background: #ede9f8; border-color: var(--accent); color: var(--accent); }
+    .kw-tag:active { background: #ddd6f3; border-color: var(--accent); color: var(--accent); }
 
     /* ── Trace state title ──────────────────────────────── */
     .s1-trace-title {
@@ -158,6 +168,18 @@
       letter-spacing: -0.3px;
       line-height: 1.18;
     }
+    .s1-trace-title p {
+      font-size: var(--t-base);
+      color: var(--ink);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+    .canvas-hint-secondary {
+      display: block;
+      margin-top: 2px;
+      font-size: var(--t-sm);
+      color: #474747;
+    }
     #screen1.state-trace .s1-trace-title { display: block; }
     #screen1.state-intent .s1-trace-title { display: none; }
 
@@ -168,13 +190,30 @@
       gap: 10px;
       margin-top: 20px;
     }
+    @keyframes gradient-border-shift {
+      0%   { background-position: 0% 50%; }
+      50%  { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
     .keyword-row-input-wrap {
       flex: 1;
+      position: relative;
       background: #ffffff;
-      border: 1px solid #d4d0ca;
+      border: none;
       border-radius: 100px;
       padding: 13px 20px;
       min-width: 0;
+      box-shadow: 0 2px 12px rgba(130, 100, 200, 0.06);
+    }
+    .keyword-row-input-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 102px;
+      background: linear-gradient(135deg, #c0b4ee, #ece1a0, #d4c8f0, #f0e6b8, #c0b4ee);
+      background-size: 300% 300%;
+      animation: gradient-border-shift 18s ease-in-out infinite;
+      z-index: -1;
     }
     #keyword-input {
       width: 100%;
@@ -273,53 +312,68 @@
       pointer-events: none;
       z-index: 5;
       border-radius: var(--radius);
+      background: rgba(253, 251, 247, 0.92);
+      backdrop-filter: blur(6px);
     }
-    .scaffold-loading.show { opacity: 1; }
-    /* Pencil spinner — a pencil draws a line while the sketch generates.
-       Pencil tip rides the leading edge of the stroke (both SMIL-driven, locked). */
-    .scaffold-loading svg { width: 94px; height: 94px; display: block; }
-    .scaffold-loading .pl-fill  { fill: var(--paper); }
-    .scaffold-loading .pl-track { fill: none; stroke: rgba(49,19,102,0.12); stroke-width: 3; }
-    .scaffold-loading .pl-arc   { fill: none; stroke: var(--accent); stroke-width: 3;
-                                  stroke-linecap: round; stroke-dasharray: 72 217;
-                                  transform-box: fill-box; transform-origin: center;
-                                  animation: plArc 1.1s linear infinite; }
-    .scaffold-loading .pl-line  { fill: none; stroke: var(--ink); stroke-width: 2.4;
-                                  stroke-linecap: round; stroke-linejoin: round;
-                                  stroke-dasharray: 1;
-                                  animation: plDraw 2s linear infinite; }
-    .scaffold-loading .pl-pencil { transform-origin: 0 0;
-                                  animation: plPencil 2s linear infinite; }
-    .scaffold-loading .pl-graphite { fill: var(--ink); }
-    .scaffold-loading .pl-wood     { fill: var(--paper); stroke: var(--ink); stroke-width: 1.3;
-                                     stroke-linejoin: round; }
-    .scaffold-loading .pl-ferrule  { fill: var(--ink); }
-    .scaffold-loading .pl-eraser   { fill: var(--accent); }
-    @keyframes plArc { to { transform: rotate(360deg); } }
-    @keyframes plDraw {
-      0%   { stroke-dashoffset: 1; }
-      60%  { stroke-dashoffset: 0; }
-      100% { stroke-dashoffset: 0; }
+    .scaffold-loading.show { opacity: 1; pointer-events: auto; }
+    .sli-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      text-align: center;
+      padding: 0 28px;
     }
-    /* pencil tip rides the leading edge of the stroke (points sampled from #pl-path).
-       Translate only — the lean is a static inner group, so the tip stays exact. */
-    @keyframes plPencil {
-      0%   { transform: translate(30px,56px); }
-      6%   { transform: translate(32.7px,50.96px); }
-      12%  { transform: translate(37.83px,49.75px); }
-      18%  { transform: translate(41.31px,54.21px); }
-      24%  { transform: translate(43.56px,59.49px); }
-      30%  { transform: translate(48px,62.75px); }
-      36%  { transform: translate(52.44px,59.49px); }
-      42%  { transform: translate(54.69px,54.21px); }
-      48%  { transform: translate(58.17px,49.75px); }
-      54%  { transform: translate(63.3px,50.96px); }
-      60%  { transform: translate(66px,56px); }
-      100% { transform: translate(66px,56px); }
+    /* Transformation animation — inline with text */
+    .sli-flow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.4;
+      margin-bottom: 20px;
     }
-    @keyframes shimmerSweep {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(66.6%); }
+    .sli-keyword { color: #321366; font-weight: 500; }
+    .sli-connector {
+      position: relative;
+      width: 52px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+    }
+    .sli-arrow {
+      position: absolute;
+      left: 0;
+      color: #321366;
+      font-size: 16px;
+      line-height: 1;
+      animation: sliArrow 1.8s ease-in-out infinite;
+    }
+    @keyframes sliArrow {
+      0%   { transform: translateX(0);    opacity: 1; }
+      62%  { transform: translateX(30px); opacity: 1; }
+      72%  { transform: translateX(30px); opacity: 0; }
+      73%  { transform: translateX(0);    opacity: 0; }
+      88%  { transform: translateX(0);    opacity: 0; }
+      100% { transform: translateX(0);    opacity: 1; }
+    }
+    .sli-icon { color: #321366; flex-shrink: 0; }
+    /* Secondary text */
+    .sli-title {
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0;
+      line-height: 1.3;
+      color: var(--ink);
+    }
+    .sli-body {
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--ink);
+      line-height: 1.4;
     }
 
     .regen-btn {
@@ -370,30 +424,30 @@
       flex-shrink: 0;
     }
     .s1-back-btn {
-      background: transparent;
-      border: none;
-      color: var(--accent);
-      font-size: var(--t-lg);
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
+      color: var(--ink);
+      border-radius: 100px;
+      padding: 4px 9px;
       cursor: pointer;
-      line-height: 1;
-      padding: 2px 4px;
       flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .s1-back-btn:active { opacity: 0.6; }
+    .s1-back-btn:active { background: #ede9f8; border-color: var(--accent); }
     /* Remove inline-SVG baseline gap so the arrow centers with the label */
     .s1-back-btn svg, .s2-back-btn svg, .s3-back-btn svg { display: block; }
     .s1-word-chip {
-      background: var(--card-bg);
-      border: 1px solid var(--accent-line);
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
       color: var(--ink);
       font-family: var(--font);
       font-size: var(--t-base);
-      font-weight: 500;
       border-radius: 100px;
-      padding: 6px 16px;
+      padding: 7px 15px;
       cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .s1-word-chip:active { opacity: 0.7; }
+    .s1-word-chip:active { background: #ede9f8; border-color: var(--accent); }
 
     #screen1.state-trace  .s1-top      { display: none; }
     #screen1.state-trace  .s1-tracebar { display: flex; }
@@ -479,11 +533,31 @@
       align-items: center;
       gap: 12px;
     }
-    .s2-top-label {
-      font-family: var(--sans);
-      font-size: var(--t-base);
-      font-weight: 400;
+    .s2-word-chip {
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
       color: var(--ink);
+      font-family: var(--font);
+      font-size: var(--t-base);
+      border-radius: 100px;
+      padding: 7px 15px;
+      cursor: default;
+    }
+    .s2-page-title {
+      flex-shrink: 0;
+      padding: 0 20px 10px;
+    }
+    .s2-page-title h2 {
+      font-size: var(--t-h1);
+      font-weight: 400;
+      letter-spacing: -0.3px;
+      line-height: 1.18;
+    }
+    .s2-page-title p {
+      font-size: var(--t-base);
+      color: var(--ink);
+      margin-top: 6px;
+      line-height: 1.4;
     }
 
     .s2-canvas-wrap {
@@ -508,7 +582,7 @@
       transition: opacity 0.3s ease;
     }
     /* While the artist style generates, hide the guide sketch — clean canvas + spinner */
-    .s2-canvas-wrap:has(#style-loading.show) #s2-scaffold-img { opacity: 0; }
+    #screen2:has(#style-loading.show) #s2-scaffold-img { opacity: 0; }
 
     #style-canvas {
       position: absolute;
@@ -616,16 +690,16 @@
     .s2-regen-btn:hover { border-color: var(--muted); color: var(--ink); }
 
     .s2-back-btn {
-      background: transparent;
-      border: none;
-      color: var(--accent);
-      font-size: var(--t-lg);
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
+      color: var(--ink);
+      border-radius: 100px;
+      padding: 4px 9px;
       cursor: pointer;
-      padding: 2px 4px;
       flex-shrink: 0;
-      line-height: 1;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .s2-back-btn:active { opacity: 0.6; }
+    .s2-back-btn:active { background: #ede9f8; border-color: var(--accent); }
 
     .s2-done-btn {
       background: var(--btn);
@@ -657,51 +731,42 @@
       flex-shrink: 0;
       padding: 18px 20px 14px;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       gap: 12px;
     }
 
     .s3-back-btn {
-      background: transparent;
-      border: none;
-      color: var(--accent);
-      font-size: var(--t-lg);
-      cursor: pointer;
-      padding: 2px 4px;
-      flex-shrink: 0;
-      line-height: 1;
-    }
-
-    .s3-title {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      font-family: var(--font);
-      font-size: var(--t-lg);
-      font-weight: 400;
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
       color: var(--ink);
-      line-height: 1.25;
-      white-space: nowrap;
+      border-radius: 100px;
+      padding: 4px 9px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .s3-title-for,
-    .s3-title-by {
-      background: transparent;
-      border: none;
-      border-bottom: 1px solid var(--accent);
+    .s3-back-btn:active { background: #ede9f8; border-color: var(--accent); }
+
+    .s3-word-chip {
+      background: rgba(216, 212, 240, 0.07);
+      border: 1px solid #c4bde8;
+      color: var(--ink);
       font-family: var(--font);
-      font-size: var(--t-lg);
-      color: var(--accent);
-      text-align: center;
-      padding: 0 2px;
-      outline: none;
-      flex: 1;
-      width: auto;
-      min-width: 0;
+      font-size: var(--t-base);
+      border-radius: 100px;
+      padding: 7px 15px;
+      cursor: default;
     }
-    .s3-title-for::placeholder,
-    .s3-title-by::placeholder { color: var(--accent); opacity: 0.55; }
+    .s3-page-title {
+      flex-shrink: 0;
+      padding: 0 20px 12px;
+    }
+    .s3-page-title h2 {
+      font-size: var(--t-h1);
+      font-weight: 400;
+      letter-spacing: -0.3px;
+      line-height: 1.18;
+    }
 
     .s3-canvas-wrap {
       flex: 1;
@@ -761,6 +826,46 @@
     .s3-back-dates { font-size: var(--t-xs); color: var(--muted); margin-bottom: 18px; line-height: 1.55; }
     .s3-back-bio p { font-size: var(--t-sm); line-height: 1.65; color: var(--ink); margin-bottom: 12px; }
     .s3-back-bio p:last-child { margin-bottom: 40px; }
+    /* Card header — editable overlay at top of the artwork face */
+    .s3-card-header {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+      background: rgba(255,255,255,0.92);
+      border-bottom: 0.5px solid rgba(0,0,0,0.10);
+      padding: 12px 14px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .s3-dedication {
+      display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
+    }
+    .s3-ded-label {
+      font-family: var(--font); font-size: 16px; font-weight: 400;
+      color: #000000; flex-shrink: 0; white-space: nowrap;
+    }
+    .s3-name-chip {
+      font-family: var(--font); font-size: 16px; font-weight: 400;
+      color: #000000; background: #ffffff;
+      border: 1px solid #E3E3E3; border-radius: 999px;
+      padding: 0 16px; height: 44px; min-width: 60px;
+      flex: 1; max-width: 140px; outline: none;
+      transition: border-color 0.15s;
+    }
+    .s3-name-chip:focus { border-color: #b0b0b0; }
+    .s3-name-chip::placeholder { color: #6B6B6B; }
+    .s3-attribution {
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font); font-size: 16px; font-weight: 400;
+      color: #000000;
+    }
+    .s3-info-btn {
+      background: #321366; border: none; padding: 0; cursor: pointer;
+      color: #ffffff; display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+      font-style: italic; font-family: Georgia, serif; font-size: 14px;
+      line-height: 1;
+    }
+    .s3-info-btn:active { opacity: 0.75; }
+    .s3-front { background: #fff; }
+    /* back: bottom-left */
     .s3-flip-btn {
       position: absolute; z-index: 5;
       display: inline-flex; align-items: center; gap: 6px;
@@ -769,10 +874,6 @@
       color: var(--accent); font-family: var(--font); font-size: 13px; font-weight: 600;
       cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
-    /* front: top-right, just under the card's byline strip */
-    .s3-front .s3-flip-btn { top: 54px; right: 14px; }
-    .s3-front { background: #fff; }
-    /* back: bottom-left */
     .s3-back .s3-flip-btn { bottom: 18px; left: 18px; }
     .s3-flip-btn:active { opacity: 0.8; }
     .s3-flip-btn svg { display: block; }
@@ -854,29 +955,74 @@
       pointer-events: none;
       transition: opacity 0.2s;
       z-index: 20;
-      border-radius: var(--radius);
-      background: transparent;
+      background: rgba(255, 255, 255, 0.80);
+      backdrop-filter: blur(8px);
     }
     .pulse-overlay.show { opacity: 1; pointer-events: all; }
-    /* Artist-photo spinner — ring + sweeping arc around the artist's portrait */
-    .artist-spinner { position: relative; width: 94px; height: 94px; }
-    .artist-spinner .ps-photo {
-      position: absolute; inset: 6px; width: 82px; height: 82px;
-      border-radius: 50%; object-fit: cover; background: var(--scaffold);
+    .ali-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      text-align: center;
+      padding: 24px 28px;
     }
-    .artist-spinner svg { position: absolute; inset: 0; width: 94px; height: 94px; }
-    .artist-spinner .ps-track { fill: none; stroke: rgba(49,19,102,0.12); stroke-width: 3; }
-    .artist-spinner .ps-arc   { fill: none; stroke: var(--accent); stroke-width: 3;
-      stroke-linecap: round; stroke-dasharray: 72 217;
-      transform-box: fill-box; transform-origin: center;
-      animation: plArc 1.1s linear infinite; }
-    #style-loading { flex-direction: column; gap: 16px; }
-    .spinner-label {
-      font-family: var(--font); font-size: 14px; color: var(--ink);
-      text-align: center; max-width: 240px; line-height: 1.3;
-      animation: labelPulse 1.6s ease-in-out infinite;
+    /* Transformation animation — consistent with Loading State 1 */
+    .ali-flow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.4;
+      color: #321366;
+      margin-bottom: 12px;
     }
-    @keyframes labelPulse { 0%,100% { opacity: 0.55; } 50% { opacity: 1; } }
+    .ali-kw     { font-weight: 500; opacity: 0; animation: aliKwAnim    3s ease-in-out infinite; }
+    .ali-arr1   { opacity: 0;       animation: aliArr1Anim  3s ease-in-out infinite; }
+    .ali-sprk   { opacity: 0;       animation: aliSprkAnim  3s ease-in-out infinite; }
+    .ali-arr2   { opacity: 0;       animation: aliArr2Anim  3s ease-in-out infinite; }
+    .ali-result { opacity: 0; font-weight: 500; animation: aliResultAnim 3s ease-in-out infinite; }
+    @keyframes aliKwAnim {
+      0%         { opacity: 0; }
+      8%, 86%    { opacity: 1; }
+      94%, 100%  { opacity: 0; }
+    }
+    @keyframes aliArr1Anim {
+      0%, 18%    { opacity: 0; transform: translateX(-4px); }
+      28%, 86%   { opacity: 1; transform: translateX(0); }
+      94%, 100%  { opacity: 0; }
+    }
+    @keyframes aliSprkAnim {
+      0%, 35%    { opacity: 0; transform: scale(0.5); }
+      46%        { opacity: 1; transform: scale(1.15); }
+      50%, 86%   { opacity: 1; transform: scale(1); }
+      94%, 100%  { opacity: 0; transform: scale(0.5); }
+    }
+    @keyframes aliArr2Anim {
+      0%, 52%    { opacity: 0; transform: translateX(-4px); }
+      62%, 86%   { opacity: 1; transform: translateX(0); }
+      94%, 100%  { opacity: 0; }
+    }
+    @keyframes aliResultAnim {
+      0%, 68%    { opacity: 0; }
+      78%, 86%   { opacity: 1; }
+      94%, 100%  { opacity: 0; }
+    }
+    .ali-title {
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--ink);
+      line-height: 1.3;
+    }
+    .ali-body {
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 400;
+      color: var(--ink);
+      line-height: 1.4;
+    }
 
     /* ── Spinning card — one-time loader on "Choose your artist".
        Lives inside the Screen-2 canvas, so it keeps the canvas size; the rest
@@ -938,7 +1084,7 @@
           <input
             id="keyword-input"
             type="text"
-            placeholder="Type your term here"
+            placeholder="Any word, feeling, object, or nickname"
             maxlength="30"
             autocomplete="off"
             autocorrect="off"
@@ -947,29 +1093,16 @@
         </div>
         <button id="confirm-btn" disabled aria-label="Confirm keyword"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12H21M16.75 16.25L21 12L16.75 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
+      <p class="kw-section-label">Need inspiration?</p>
       <div class="keyword-examples">
-        <button class="kw-tag">drag queen</button>
         <button class="kw-tag">dreamer</button>
         <button class="kw-tag">rebel</button>
         <button class="kw-tag">optimist</button>
-        <button class="kw-tag">perfectionist</button>
-        <button class="kw-tag">adventurer</button>
-        <button class="kw-tag">comfort</button>
-        <button class="kw-tag">nostalgia</button>
-        <button class="kw-tag">curiosity</button>
-        <button class="kw-tag">courage</button>
-        <button class="kw-tag">joy</button>
         <button class="kw-tag">dragon</button>
-        <button class="kw-tag">compass</button>
         <button class="kw-tag">lighthouse</button>
-        <button class="kw-tag">sunflower</button>
-        <button class="kw-tag">telescope</button>
-        <button class="kw-tag">treasure map</button>
         <button class="kw-tag">disco ball</button>
         <button class="kw-tag">bear hug</button>
-        <button class="kw-tag">time machine</button>
-        <button class="kw-tag">lucky charm</button>
-        <button class="kw-tag">secret garden</button>
+        <button class="kw-tag">north star</button>
       </div>
     </div>
 
@@ -979,7 +1112,8 @@
     </div>
 
     <div class="s1-trace-title">
-      <h2>Trace the image</h2>
+      <h2>Sketch out your idea</h2>
+      <p>Use the guide as a starting point. Your drawing doesn't need to match it.</p>
     </div>
 
     <div class="canvas-area" id="canvas-area">
@@ -988,32 +1122,27 @@
         <canvas id="draw-canvas"></canvas>
       </div>
       <button class="regen-btn" id="regen-btn" title="New motif"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke-width="1.5"><path d="M21 21L9 21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M14.9142 3.41421L19.864 8.36396C20.645 9.14501 20.645 10.4113 19.864 11.1924L10.6213 20.435C10.2596 20.7968 9.76894 21 9.25736 21C8.74577 21 8.25514 20.7968 7.8934 20.435L2.8934 15.435C2.11235 14.654 2.11235 13.3877 2.8934 12.6066L7 8.5L11.75 13.25C12.4404 13.9404 13.5596 13.9404 14.25 13.25C14.9404 12.5596 14.9404 11.4404 14.25 10.75L9.5 6L12.0858 3.41421C12.8668 2.63317 14.1332 2.63317 14.9142 3.41421Z" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
-      <div class="canvas-hint" id="canvas-hint">Draw over the guide with your finger<br>Pinch to zoom in and out</div>
+      <div class="canvas-hint" id="canvas-hint">Make it your own<span class="canvas-hint-secondary">Pinch to zoom in and out</span></div>
       <div class="scaffold-loading" id="scaffold-loading">
-        <svg viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="pl-fill"  cx="50" cy="50" r="46"/>
-          <circle class="pl-track" cx="50" cy="50" r="46"/>
-          <circle class="pl-arc"   cx="50" cy="50" r="46"/>
-          <!-- the line being drawn -->
-          <path id="pl-path" class="pl-line" pathLength="1"
-                d="M 30 56 C 33 47 39 47 42 56 C 45 65 51 65 54 56 C 57 47 63 47 66 56"/>
-          <!-- pencil: tip at (0,0), body up; CSS translate rides the path leading edge.
-               Inner group holds the static lean (rotates about the tip at 0,0). -->
-          <g class="pl-pencil">
-            <g transform="rotate(-22)">
-              <polygon class="pl-graphite" points="0,0 -1.7,-4 1.7,-4"/>
-              <polygon class="pl-wood" points="-1.7,-4 1.7,-4 3.4,-9 -3.4,-9"/>
-              <rect class="pl-wood"    x="-3.4" y="-33" width="6.8" height="24" rx="0.6"/>
-              <rect class="pl-ferrule" x="-3.4" y="-37" width="6.8" height="4"/>
-              <rect class="pl-eraser"  x="-3.4" y="-42.5" width="6.8" height="5.5" rx="2"/>
-            </g>
-          </g>
-        </svg>
+        <div class="sli-inner">
+          <div class="sli-flow">
+            <span class="sli-keyword" id="sli-keyword"></span>
+            <span class="sli-connector" aria-hidden="true">
+              <span class="sli-arrow">→</span>
+            </span>
+            <svg class="sli-icon" viewBox="0 0 20 26" width="14" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="10" cy="6" r="3.5"/>
+              <path d="M5 10.5 C5 15 4 20 4 24 L16 24 C16 20 15 15 15 10.5 Z"/>
+            </svg>
+          </div>
+          <p class="sli-title">Creating your scaffold</p>
+          <p class="sli-body" id="sli-body">Turning your word into a starting shape…</p>
+        </div>
       </div>
     </div>
 
     <div class="s1-bottom">
-      <button class="btn-primary" id="next-btn" disabled>Choose your artist <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12H21M16.75 16.25L21 12L16.75 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn-primary" id="next-btn" disabled>Generate Artifakts <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12H21M16.75 16.25L21 12L16.75 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
   </div>
 
@@ -1023,22 +1152,16 @@
   <div id="screen2" class="screen">
     <div class="s2-top">
       <button class="s2-back-btn" id="s2-back-btn" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12H3M7.25 16.25L3 12L7.25 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <span class="s2-top-label">Choose your artist</span>
+      <button class="s2-word-chip" id="s2-word-chip"></button>
+    </div>
+    <div class="s2-page-title">
+      <h2>Choose your style</h2>
+      <p>Select a style for your Artifakt.</p>
     </div>
     <div class="s2-canvas-wrap">
       <img id="s2-scaffold-img" alt="" />
       <canvas id="style-canvas"></canvas>
       <img id="style-img" alt="">
-      <div class="pulse-overlay" id="style-loading">
-        <div class="artist-spinner">
-          <img id="artist-spinner-img" class="ps-photo" alt="" />
-          <svg viewBox="0 0 100 100" aria-hidden="true">
-            <circle class="ps-track" cx="50" cy="50" r="46"/>
-            <circle class="ps-arc"   cx="50" cy="50" r="46"/>
-          </svg>
-        </div>
-        <div class="spinner-label" id="spinner-label"></div>
-      </div>
       <!-- One-time spinning card: fills the canvas, spins until the first artwork loads -->
       <div id="card-spin">
         <div class="card-spin-card">
@@ -1060,6 +1183,19 @@
         <button class="s2-done-btn" id="done-btn">Create your card <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12H21M16.75 16.25L21 12L16.75 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
+    <div class="pulse-overlay" id="style-loading">
+      <div class="ali-inner">
+        <div class="ali-flow" aria-hidden="true">
+          <span class="ali-kw">"traced sketch"</span>
+          <span class="ali-arr1">→</span>
+          <span class="ali-sprk">✦</span>
+          <span class="ali-arr2">→</span>
+          <span class="ali-result">Artifakt</span>
+        </div>
+        <p class="ali-title">Creating your Artifakts</p>
+        <p class="ali-body">Your sketch is being interpreted in multiple styles.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ═══════════════════════════════════════
@@ -1068,11 +1204,10 @@
   <div id="screen3" class="screen">
     <div class="s3-top">
       <button class="s3-back-btn" id="s3-back-btn" aria-label="Back"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M21 12H3M7.25 16.25L3 12L7.25 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <p class="s3-title">
-        For <input class="s3-title-for" id="s3-for" placeholder="name" maxlength="24" autocomplete="off" spellcheck="false" />
-        by <input class="s3-title-by" id="s3-by" placeholder="you" maxlength="24" autocomplete="off" spellcheck="false" />
-        <span id="s3-artist-name" style="display:none">—</span>
-      </p>
+      <button class="s3-word-chip" id="s3-word-chip"></button>
+    </div>
+    <div class="s3-page-title">
+      <h2>Your Artifakt</h2>
     </div>
     <div class="s3-canvas-wrap">
       <div class="s3-flip" id="s3-flip">
@@ -1081,10 +1216,19 @@
           <div class="replay-stamp">
             <canvas id="replay-canvas"></canvas>
           </div>
-          <button class="s3-flip-btn" id="s3-flip-btn" aria-label="About the artist">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 16.5v-5M12 8h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-            <span id="s3-flip-btn-label">About the artist</span>
-          </button>
+          <!-- Editable card header — what users see is what gets shared -->
+          <div class="s3-card-header">
+            <div class="s3-dedication">
+              <span class="s3-ded-label">For</span>
+              <input class="s3-name-chip" id="s3-for" placeholder="Name" autocomplete="off" />
+              <span class="s3-ded-label">by</span>
+              <input class="s3-name-chip" id="s3-by" placeholder="Name" autocomplete="off" />
+            </div>
+            <div class="s3-attribution">
+              <span>with <span id="s3-artist-name">—</span></span>
+              <button class="s3-info-btn" id="s3-flip-btn" aria-label="About the artist">i</button>
+            </div>
+          </div>
         </div>
         <div class="s3-face s3-back">
           <div class="s3-back-inner">
@@ -1319,7 +1463,9 @@ async function generateScaffold(keyword) {
 
   if (!FAL_API_KEY) return;
 
-  // Show loading dots immediately on the white canvas
+  // Show loading overlay immediately on the canvas
+  const sliKeyword = document.getElementById('sli-keyword');
+  if (sliKeyword) sliKeyword.textContent = `"${keyword}"`;
   scaffoldLoading.classList.add('show');
   const genId = ++scaffoldGenId;
 
@@ -3544,7 +3690,6 @@ function startDraw(e) {
   Object.keys(artistImageCache).forEach(k => delete artistImageCache[k]);
   const pos = getPos(e);
   state.currentStroke = { points: [pos] };
-  canvasHint.style.opacity = '0';
 }
 
 function moveDraw(e) {
@@ -3671,6 +3816,7 @@ nextBtn.addEventListener('click', () => {
     s2scaffold.src = s1scaffold.src;
   }
   startCardSpin(s1scaffold ? s1scaffold.src : '');
+  document.getElementById('s2-word-chip').textContent = state.keyword;
   transitionTo('screen2');
   setTimeout(buildScreen2, 380);
 });
@@ -3697,7 +3843,13 @@ function resizeStyleCanvas() {
   styleCtx.scale(devicePixelRatio, devicePixelRatio);
 }
 
+function markArtistDone(key) {
+  const el = document.querySelector(`.ali-artist[data-key="${key}"]`);
+  if (el) el.classList.add('done');
+}
+
 function buildScreen2() {
+  document.querySelectorAll('.ali-artist').forEach(el => el.classList.remove('done'));
   const artists = getArtists();
   state.selectedArtist = 0;
   updateRegenLabel(0);
@@ -3774,14 +3926,7 @@ async function renderArtistStyle(index, isBackground = false) {
   if (!isBackground) {
     styleImg.classList.remove('visible');
     regenArtistBtn.classList.remove('visible');
-    // During the one-time card spin, the card IS the loader — keep the avatar hidden.
-    if (!cardSpinActive) {
-      const spinnerImg = document.getElementById('artist-spinner-img');
-      if (spinnerImg) spinnerImg.src = ARTIST_AVATARS[artistKey] || '';
-      const spinnerLabel = document.getElementById('spinner-label');
-      if (spinnerLabel) spinnerLabel.textContent = 'Jujing it up…';
-      styleLoading.classList.add('show');
-    }
+    styleLoading.classList.add('show');
     artistCards.style.pointerEvents = 'none';
     replicateResultUrl = null;
     styleCtx.clearRect(0, 0, styleCanvas.width, styleCanvas.height);
@@ -3793,6 +3938,7 @@ async function renderArtistStyle(index, isBackground = false) {
       const imageUrl = await callFal(artistKey, base64);
       if (callId !== artistCallIds[artistKey]) return;
       artistImageCache[artistKey] = imageUrl;
+      markArtistDone(artistKey);
 
       if (isBackground && selectedCallId !== index) return;
 
@@ -3808,6 +3954,7 @@ async function renderArtistStyle(index, isBackground = false) {
         console.warn('Image load failed, falling back to canvas');
         styleImg.classList.remove('visible');
         regenArtistBtn.classList.remove('visible');
+        markArtistDone(artistKey);
         applyArtistStyle(styleCtx, artist, w, h, state.strokes, state.motifIndex, state.keyword);
         styleLoading.classList.remove('show'); artistCards.style.pointerEvents = '';
         if (cardSpinActive) endCardSpin();
@@ -3819,6 +3966,7 @@ async function renderArtistStyle(index, isBackground = false) {
       styleImg.classList.remove('visible');
       regenArtistBtn.classList.remove('visible');
       styleCtx.clearRect(0, 0, w, h);
+      markArtistDone(artistKey);
       applyArtistStyle(styleCtx, artist, w, h, state.strokes, state.motifIndex, state.keyword);
       styleLoading.classList.remove('show'); artistCards.style.pointerEvents = '';
       if (cardSpinActive) endCardSpin();
@@ -3827,6 +3975,7 @@ async function renderArtistStyle(index, isBackground = false) {
     styleImg.classList.remove('visible');
     setTimeout(() => {
       styleCtx.clearRect(0, 0, w, h);
+      markArtistDone(artistKey);
       applyArtistStyle(styleCtx, artist, w, h, state.strokes, state.motifIndex, state.keyword);
       styleLoading.classList.remove('show'); artistCards.style.pointerEvents = '';
       if (cardSpinActive) endCardSpin();
@@ -3896,6 +4045,7 @@ doneBtn.addEventListener('click', () => {
   if (bio) bio.text.forEach(t => { const p = document.createElement('p'); p.textContent = t; bioEl.appendChild(p); });
   document.getElementById('s3-flip').classList.remove('flipped'); // always start on the artwork
 
+  document.getElementById('s3-word-chip').textContent = state.keyword;
   transitionTo('screen3');
   setTimeout(buildScreen3, 380);
 });
@@ -3994,34 +4144,35 @@ function drawCard(ctx, w, h, artistImg, scaffoldImg) {
     drawImageCover(ctx, artistImg, w, h);
   }
 
-  // 4. Title at top: "For X by Y with the help of Z"
+  // 4. Card header strip: "For [name] by [name]" + "with [artist]"
   const forVal  = (document.getElementById('s3-for').value  || '').trim();
   const byVal   = (document.getElementById('s3-by').value   || '').trim();
   const artist  = document.getElementById('s3-artist-name').textContent || '';
   {
-    const parts = [];
-    if (forVal) parts.push(`For ${forVal}`);
-    else        parts.push(`For —`);
-    if (byVal)  parts.push(`by ${byVal}`);
-    else        parts.push(`by —`);
-    if (artist && artist !== '—') parts.push(`with ${artist}`);
-    const titleText = parts.join('  ·  ');
-
+    const stripH = 62;
     ctx.save();
-    const stripH = 44;
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.fillStyle = 'rgba(255,255,255,0.90)';
     ctx.fillRect(0, 0, w, stripH);
 
-    // Thin rule at bottom of strip
-    ctx.strokeStyle = 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath(); ctx.moveTo(w*0.08, stripH - 6); ctx.lineTo(w*0.92, stripH - 6); ctx.stroke();
-
+    // Line 1: dedication
+    const line1 = `For ${forVal || '—'}  by ${byVal || '—'}`;
     ctx.fillStyle = '#1a1a1a';
-    ctx.font = `400 16px 'Syne', sans-serif`;
+    ctx.font = `400 15px 'Syne', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(titleText, w / 2, stripH / 2, w - 24);
+    ctx.fillText(line1, w / 2, 20, w - 28);
+
+    // Line 2: attribution
+    if (artist && artist !== '—') {
+      ctx.fillStyle = '#6b6b6b';
+      ctx.font = `400 13px 'Syne', sans-serif`;
+      ctx.fillText(`with ${artist}`, w / 2, 41, w - 28);
+    }
+
+    // Thin rule at bottom
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(w*0.08, stripH - 2); ctx.lineTo(w*0.92, stripH - 2); ctx.stroke();
     ctx.restore();
   }
 
