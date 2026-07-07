@@ -1330,7 +1330,7 @@ const state = {
    The Worker holds the real fal.ai key and enforces rate limits;
    the browser never sees the key.
 ══════════════════════════════════════════════════════════ */
-const WORKER_URL = 'https://artifakt-proxy.YOUR-SUBDOMAIN.workers.dev';
+const WORKER_URL = 'https://artifakt-proxy.flore-dc.workers.dev';
 
 class RateLimitError extends Error {
   constructor(reason) { super('rate_limited'); this.reason = reason; }

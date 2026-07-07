@@ -10,13 +10,19 @@
  * Env bindings (see wrangler.toml):
  *   RATE_LIMIT_KV — KV namespace for counters
  *   FAL_API_KEY   — fal.ai API key, set via `wrangler secret put FAL_API_KEY`
+ *   NTFY_TOPIC    — ntfy.sh topic for the global-limit push alert, set via
+ *                   `wrangler secret put NTFY_TOPIC` (kept out of source since
+ *                   ntfy topics are public/guessable — anyone with the name
+ *                   can read or post to it)
  */
 
-// Each full "generation" the user sees on screen costs 3 calls through this
-// proxy (1 scaffold + 2 image-to-image passes), so these are call counts,
-// not generation counts — scale accordingly if you tune them.
-const PER_IP_DAILY_LIMIT = 9;   // ≈ 3 generations per visitor per day
-const GLOBAL_DAILY_LIMIT = 300; // ≈ 100 generations per day, site-wide budget backstop
+// A single full visit (type a keyword, see all 5 artists) costs 11 calls
+// through this proxy: 1 scaffold + 5 artists × 2 image-to-image passes each
+// (buildScreen2 pre-generates all 5 artists in parallel, not just the one
+// the visitor clicks on). These are call counts, not visit counts — scale
+// accordingly if you tune them.
+const PER_IP_DAILY_LIMIT = 24;  // ≈ 2 full visits per visitor per day (22) + a little slack
+const GLOBAL_DAILY_LIMIT = 825; // ≈ 75 full visits per day (~$24.75 max fal.ai spend/day), site-wide budget backstop
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -47,8 +53,25 @@ async function incrementCounter(kv, key, ttlSeconds) {
   await kv.put(key, String(current + 1), { expirationTtl: ttlSeconds });
 }
 
+// Pings Flore's phone the first time the global cap trips each day. The KV
+// flag makes this a one-shot: every request after the first blocked one that
+// day sees `alreadyNotified` and skips the ntfy call.
+async function notifyGlobalLimitOnce(env) {
+  const notifiedKey = `notified:${todayUTC()}`;
+  const alreadyNotified = await env.RATE_LIMIT_KV.get(notifiedKey);
+  if (alreadyNotified) return;
+  await env.RATE_LIMIT_KV.put(notifiedKey, '1', { expirationTtl: 60 * 60 * 24 * 2 });
+
+  if (!env.NTFY_TOPIC) return; // secret not set yet — skip silently
+  await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
+    method: 'POST',
+    headers: { Title: 'Artifakt: global rate limit tripped', Priority: 'default' },
+    body: `Global daily limit (${GLOBAL_DAILY_LIMIT} calls) reached. Visitors are now getting the "taking a breather" overlay for the rest of today (UTC).`,
+  });
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
@@ -72,6 +95,9 @@ export default {
     // Global cap is the real budget backstop — it wins even if this visitor
     // still has quota left.
     if (globalCount >= GLOBAL_DAILY_LIMIT) {
+      // Don't make the visitor wait on the ntfy push — fire and let the
+      // Worker keep it alive after the response is sent.
+      ctx.waitUntil(notifyGlobalLimitOnce(env));
       return json(429, { reason: 'global_limit' });
     }
     if (ipCount >= PER_IP_DAILY_LIMIT) {
