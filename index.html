@@ -1024,6 +1024,42 @@
       line-height: 1.4;
     }
 
+    /* ── Mobile nudge — full-width banner above the app's narrow column ── */
+    .mobile-nudge {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 900;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 10px 20px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--accent-line);
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      text-align: center;
+    }
+    .mobile-nudge.show { display: flex; }
+    .mobile-nudge-close {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin: -6px 0;
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      padding: 0;
+    }
+
     /* ── Rate-limit overlay — full-viewport, shown over any screen ── */
     .limit-overlay {
       position: fixed;
@@ -1123,6 +1159,10 @@
   </style>
 </head>
 <body>
+<div class="mobile-nudge" id="mobile-nudge">
+  <span>Artifakt works best on mobile — grab your phone for the smoothest experience.</span>
+  <button class="mobile-nudge-close" id="mobile-nudge-close" aria-label="Dismiss">&times;</button>
+</div>
 <div id="app">
 
   <!-- ═══════════════════════════════════════
@@ -4530,6 +4570,24 @@ function restoreDraftIfAny() {
   nextBtn.click();
 }
 restoreDraftIfAny();
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE NUDGE
+   The app shell is capped at 430px wide, so on a desktop
+   browser it renders as a narrow column with empty space on
+   either side. Nudge desktop visitors toward their phone —
+   never shown on a viewport that's already mobile-sized.
+══════════════════════════════════════════════════════════ */
+(function initMobileNudge() {
+  const DISMISS_KEY = 'artifakt_mobile_nudge_dismissed';
+  const banner = document.getElementById('mobile-nudge');
+  if (localStorage.getItem(DISMISS_KEY) || window.matchMedia('(max-width: 700px)').matches) return;
+  banner.classList.add('show');
+  document.getElementById('mobile-nudge-close').addEventListener('click', () => {
+    banner.classList.remove('show');
+    localStorage.setItem(DISMISS_KEY, '1');
+  });
+})();
 </script>
 </body>
 </html>
