@@ -1336,12 +1336,13 @@ class RateLimitError extends Error {
   constructor(reason) { super('rate_limited'); this.reason = reason; }
 }
 
-function showLimitOverlay(reason) {
+function showLimitOverlay(reason, hasSavedDraft = false) {
   const overlay = document.getElementById('limit-overlay');
   const msg = document.getElementById('limit-overlay-msg');
+  const savedNote = " Your sketch is saved on this device — come back tomorrow to pick up right where you left off.";
   msg.textContent = reason === 'global_limit'
-    ? "Artifakt is resting for today — so many people have been creating that we've hit today's limit. Come back tomorrow!"
-    : "You've reached today's limit on this device. Come back tomorrow for more Artifakts!";
+    ? "So many people are making Artifakts today that we've hit the limit for everyone." + (hasSavedDraft ? savedNote : " Come back tomorrow.")
+    : "You've had your two Artifakts for today." + (hasSavedDraft ? savedNote : " Come back tomorrow for more.");
   overlay.classList.add('show');
 }
 
@@ -4057,7 +4058,7 @@ async function renderArtistStyle(index, isBackground = false) {
         regenArtistBtn.classList.remove('visible');
         styleLoading.classList.remove('show'); artistCards.style.pointerEvents = '';
         if (cardSpinActive) endCardSpin();
-        showLimitOverlay(err.reason);
+        showLimitOverlay(err.reason, true);
         return;
       }
       console.warn('Replicate failed, falling back to canvas:', err);
