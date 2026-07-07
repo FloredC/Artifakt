@@ -1024,42 +1024,6 @@
       line-height: 1.4;
     }
 
-    /* ── Mobile nudge — full-width banner above the app's narrow column ── */
-    .mobile-nudge {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 900;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      padding: 10px 20px;
-      background: var(--card-bg);
-      border-bottom: 1px solid var(--accent-line);
-      font-family: var(--sans);
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--accent);
-      text-align: center;
-    }
-    .mobile-nudge.show { display: flex; }
-    .mobile-nudge-close {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      height: 28px;
-      margin: -6px 0;
-      background: none;
-      border: none;
-      color: var(--accent);
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
-      padding: 0;
-    }
-
     /* ── Rate-limit overlay — full-viewport, shown over any screen ── */
     .limit-overlay {
       position: fixed;
@@ -1159,10 +1123,6 @@
   </style>
 </head>
 <body>
-<div class="mobile-nudge" id="mobile-nudge">
-  <span>Artifakt works best on mobile — grab your phone for the smoothest experience.</span>
-  <button class="mobile-nudge-close" id="mobile-nudge-close" aria-label="Dismiss">&times;</button>
-</div>
 <div id="app">
 
   <!-- ═══════════════════════════════════════
@@ -1370,19 +1330,18 @@ const state = {
    The Worker holds the real fal.ai key and enforces rate limits;
    the browser never sees the key.
 ══════════════════════════════════════════════════════════ */
-const WORKER_URL = 'https://artifakt-proxy.flore-dc.workers.dev';
+const WORKER_URL = 'https://artifakt-proxy.YOUR-SUBDOMAIN.workers.dev';
 
 class RateLimitError extends Error {
   constructor(reason) { super('rate_limited'); this.reason = reason; }
 }
 
-function showLimitOverlay(reason, hasSavedDraft = false) {
+function showLimitOverlay(reason) {
   const overlay = document.getElementById('limit-overlay');
   const msg = document.getElementById('limit-overlay-msg');
-  const savedNote = " Your sketch is saved on this device — come back tomorrow to pick up right where you left off.";
   msg.textContent = reason === 'global_limit'
-    ? "So many people are making Artifakts today that we've hit the limit for everyone." + (hasSavedDraft ? savedNote : " Come back tomorrow.")
-    : "You've had your two Artifakts for today." + (hasSavedDraft ? savedNote : " Come back tomorrow for more.");
+    ? "Artifakt is resting for today — so many people have been creating that we've hit today's limit. Come back tomorrow!"
+    : "You've reached today's limit on this device. Come back tomorrow for more Artifakts!";
   overlay.classList.add('show');
 }
 
@@ -4098,7 +4057,7 @@ async function renderArtistStyle(index, isBackground = false) {
         regenArtistBtn.classList.remove('visible');
         styleLoading.classList.remove('show'); artistCards.style.pointerEvents = '';
         if (cardSpinActive) endCardSpin();
-        showLimitOverlay(err.reason, true);
+        showLimitOverlay(err.reason);
         return;
       }
       console.warn('Replicate failed, falling back to canvas:', err);
@@ -4570,24 +4529,6 @@ function restoreDraftIfAny() {
   nextBtn.click();
 }
 restoreDraftIfAny();
-
-/* ══════════════════════════════════════════════════════════
-   MOBILE NUDGE
-   The app shell is capped at 430px wide, so on a desktop
-   browser it renders as a narrow column with empty space on
-   either side. Nudge desktop visitors toward their phone —
-   never shown on a viewport that's already mobile-sized.
-══════════════════════════════════════════════════════════ */
-(function initMobileNudge() {
-  const DISMISS_KEY = 'artifakt_mobile_nudge_dismissed';
-  const banner = document.getElementById('mobile-nudge');
-  if (localStorage.getItem(DISMISS_KEY) || window.matchMedia('(max-width: 700px)').matches) return;
-  banner.classList.add('show');
-  document.getElementById('mobile-nudge-close').addEventListener('click', () => {
-    banner.classList.remove('show');
-    localStorage.setItem(DISMISS_KEY, '1');
-  });
-})();
 </script>
 </body>
 </html>

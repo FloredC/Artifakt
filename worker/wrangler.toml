@@ -1,0 +1,16 @@
+name = "artifakt-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+kv_namespaces = [
+  { binding = "RATE_LIMIT_KV", id = "a0cf6299a76e4c339579422b1d118a4d" }
+]
+
+# FAL_API_KEY and NTFY_TOPIC are secrets — never put them here. After
+# creating the KV namespace with:
+#   wrangler kv namespace create RATE_LIMIT_KV
+# paste the returned id above, then set the secrets with:
+#   wrangler secret put FAL_API_KEY
+#   wrangler secret put NTFY_TOPIC   (pick an unguessable topic name, e.g.
+#                                      from https://ntfy.sh/app, and subscribe
+#                                      to it in the ntfy app on your phone)
