@@ -38,8 +38,10 @@ No framework, no build step, no backend of its own. The whole app is one `index.
 
 Image generation goes through [fal.ai](https://fal.ai):
 
-- **Scaffold** — `fal-ai/flux/schnell`
-- **Artist styling** — `fal-ai/flux/dev/image-to-image` at strength `0.81`
+- **Scaffold** — `fal-ai/flux/schnell`, a single call
+- **Artist styling** — `fal-ai/flux/dev/image-to-image`, run **twice** per artist — pass 1 for gesture and material, pass 2 for colour and motifs — each at a strength tuned per artist (0.75–0.82, then 0.80–0.90)
+
+A full visit costs 11 calls: one scaffold, plus five artists × two passes generated in parallel. The Worker's per-visitor daily cap of 24 is sized against that.
 
 Every artist prompt opens with **"KEEP THE EXACT LINE COMPOSITION"**. Without it the model ignores the sketch and draws an icon *of* the artist — a spider for Bourgeois, silhouettes for Walker. With it, your lines become the artist's material.
 
