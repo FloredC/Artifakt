@@ -1390,7 +1390,7 @@ document.getElementById('limit-overlay-close').addEventListener('click', () => {
   document.getElementById('limit-overlay').classList.remove('show');
 });
 
-let replicateResultUrl = null; // reused as falResultUrl for Screen 3
+let falResultUrl = null; // artist result URL, carried into Screen 3
 
 /* ── Browser-side Variant C contour reduction ───────────────
    Approximates the Python OpenCV pipeline from Experiment 006:
@@ -4039,7 +4039,7 @@ async function renderArtistStyle(index, isBackground = false) {
   // serve from cache instantly if already generated
   if (artistImageCache[artistKey]) {
     if (!isBackground) {
-      replicateResultUrl = artistImageCache[artistKey];
+      falResultUrl = artistImageCache[artistKey];
       styleImg.src = artistImageCache[artistKey];
       styleImg.classList.add('visible');
       regenArtistBtn.classList.add('visible');
@@ -4056,7 +4056,7 @@ async function renderArtistStyle(index, isBackground = false) {
     regenArtistBtn.classList.remove('visible');
     styleLoading.classList.add('show');
     artistCards.style.pointerEvents = 'none';
-    replicateResultUrl = null;
+    falResultUrl = null;
     styleCtx.clearRect(0, 0, styleCanvas.width, styleCanvas.height);
   }
 
@@ -4073,7 +4073,7 @@ async function renderArtistStyle(index, isBackground = false) {
 
       if (isBackground && selectedCallId !== index) return;
 
-      replicateResultUrl = imageUrl;
+      falResultUrl = imageUrl;
 
       styleImg.onload = () => {
         styleImg.classList.add('visible');
@@ -4101,7 +4101,7 @@ async function renderArtistStyle(index, isBackground = false) {
         showLimitOverlay(err.reason, true);
         return;
       }
-      console.warn('Replicate failed, falling back to canvas:', err);
+      console.warn('fal.ai failed, falling back to canvas:', err);
       styleImg.classList.remove('visible');
       regenArtistBtn.classList.remove('visible');
       styleCtx.clearRect(0, 0, w, h);
@@ -4373,10 +4373,10 @@ function buildScreen3() {
 
   Promise.all([
     loadCrossOrigin(scaffoldSrc),
-    replicateResultUrl ? loadCrossOrigin(replicateResultUrl) : Promise.resolve(null),
+    falResultUrl ? loadCrossOrigin(falResultUrl) : Promise.resolve(null),
     document.fonts.ready
   ]).then(([scaffoldImg, artistImg]) => {
-    if (!artistImg && !replicateResultUrl) {
+    if (!artistImg && !falResultUrl) {
       // No AI image — use canvas-based fallback
       const artists = getArtists();
       const artist  = artists[state.selectedArtist];
