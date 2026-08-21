@@ -34,7 +34,7 @@ Sixty seconds of tracing is enough to create ownership. The emotional choreograp
 
 ## How it works
 
-No framework, no build step, no backend of its own. The whole app is one `index.html` that runs in any mobile browser.
+No framework, no build step. The whole app is one `index.html` that runs in any mobile browser; the only server-side piece is a thin Cloudflare Worker that keeps the fal.ai key out of the browser.
 
 Image generation goes through [fal.ai](https://fal.ai):
 
