@@ -23,6 +23,7 @@
       --btn-text: #ffffff;
       --card-bg: #f6f2fc;      /* light purple — selected card / pill */
       --canvas-bg: #f7f4ed;
+      --canvas-line: #e3e3e3;  /* light gray — canvas outlines */
       --radius: 16px;
       --font: 'Syne', sans-serif;
       --sans: 'Syne', sans-serif;
@@ -256,7 +257,7 @@
       margin: 0 16px 16px;
       border-radius: var(--radius);
       background: var(--canvas-bg);
-      border: 1px solid var(--accent-line);
+      border: 1px solid var(--canvas-line);
     }
 
     .canvas-area.hidden { opacity: 0; pointer-events: none; }
@@ -567,7 +568,7 @@
       margin: 0 16px 0;
       border-radius: var(--radius);
       background: var(--canvas-bg);
-      border: 1px solid var(--accent-line);
+      border: 1px solid var(--canvas-line);
     }
 
     /* Persistent scaffold — same image from Screen 1 */
@@ -775,7 +776,7 @@
       margin: 0 16px 0;
       border-radius: var(--radius);
       background: #fff;
-      border: 1px solid var(--accent-line);
+      border: 1px solid var(--canvas-line);
       perspective: 1800px;
     }
 
@@ -822,7 +823,7 @@
       padding: 30px 26px 26px;
       -webkit-overflow-scrolling: touch;
     }
-    .s3-back-title { font-size: var(--t-lg); font-weight: 700; color: var(--accent); margin-bottom: 4px; line-height: 1.2; }
+    .s3-back-title { font-size: var(--t-lg); font-weight: 600; color: var(--ink); margin-bottom: 4px; line-height: 1.2; }
     .s3-back-dates { font-size: var(--t-xs); color: var(--muted); margin-bottom: 18px; line-height: 1.55; }
     .s3-back-bio p { font-size: var(--t-sm); line-height: 1.65; color: var(--ink); margin-bottom: 12px; }
     .s3-back-bio p:last-child { margin-bottom: 40px; }
@@ -833,6 +834,15 @@
       border-bottom: 0.5px solid rgba(0,0,0,0.10);
       padding: 12px 14px 12px;
       display: flex; flex-direction: column; gap: 8px;
+      /* Its z-index lifts it into its own 3D layer, so the face's
+         backface-visibility no longer hides it — it needs its own. */
+      -webkit-backface-visibility: hidden; backface-visibility: hidden;
+      /* Returning to the artwork: fade back in once the card faces front. */
+      transition: opacity 0.25s ease 0.3s;
+    }
+    .s3-flip.flipped .s3-card-header {
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s ease;
     }
     .s3-dedication {
       display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
@@ -870,8 +880,8 @@
       position: absolute; z-index: 5;
       display: inline-flex; align-items: center; gap: 6px;
       padding: 8px 13px; border-radius: 100px;
-      background: rgba(255,255,255,0.92); border: 1.5px solid var(--accent-line);
-      color: var(--accent); font-family: var(--font); font-size: 13px; font-weight: 600;
+      background: rgba(255,255,255,0.92); border: 1.5px solid var(--btn);
+      color: var(--btn); font-family: var(--font); font-size: 13px; font-weight: 600;
       cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     }
     .s3-back .s3-flip-btn { bottom: 18px; left: 18px; }
@@ -1137,7 +1147,7 @@
       border-radius: var(--radius); overflow: hidden;
       backface-visibility: hidden;
       background: var(--canvas-bg);
-      border: 1px solid var(--accent-line);   /* the canvas purple outline rotates with the card */
+      border: 1px solid var(--canvas-line);   /* the canvas outline rotates with the card */
     }
     .csc-back { transform: rotateY(180deg); }
     .csc-face img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
